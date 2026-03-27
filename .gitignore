@@ -1,0 +1,26 @@
+# Secrets
+.env
+keys/
+*.pem
+*.key
+
+# Runtime config & data (generated)
+data/
+tunnel/autossh-tunnel.service
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,46 @@
+services:
+  mtproxy:
+    image: ghcr.io/getpagespeed/mtproxy:latest
+    container_name: sangha-mtproto
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - ../data/mtproxy.env
+    environment:
+      - PORT=${PROXY_PORT:-3128}
+      - EE_DOMAIN=${TLS_DOMAIN:-ya.ru}
+      - WORKERS=1
+      - STATS_PORT=8888
+    logging:
+      driver: json-file
+      options:
+        max-file: "10"
+        max-size: "10m"
+    mem_limit: 256m
+
+  api:
+    build:
+      context: ../api
+    container_name: sangha-api
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ../data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - SANGHA_API_KEY=${SANGHA_API_KEY}
+      - USERS_PATH=/data/users.json
+      - PROXY_CONTAINER=sangha-mtproto
+      - PROXY_COMPOSE_DIR=/opt/sangha-proxy/proxy
+      - PROXY_ENV_PATH=/data/mtproxy.env
+      - TLS_DOMAIN=${TLS_DOMAIN:-ya.ru}
+      - PUBLIC_SERVER=${RUSSIAN_VM_HOST:-tg.rigpa.space}
+      - PUBLIC_PORT=${PUBLIC_PORT:-443}
+      - CONNECTION_LIMIT=${CONNECTION_LIMIT:-16}
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: "5m"
+    mem_limit: 128m

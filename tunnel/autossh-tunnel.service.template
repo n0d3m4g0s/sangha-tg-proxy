@@ -1,0 +1,23 @@
+[Unit]
+Description=AutoSSH Tunnel to MTProto Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment="AUTOSSH_GATETIME=0"
+Environment="AUTOSSH_POLL=30"
+ExecStart=/usr/bin/autossh -M 0 \
+    -o "ServerAliveInterval=30" \
+    -o "ServerAliveCountMax=3" \
+    -o "ExitOnForwardFailure=yes" \
+    -o "StrictHostKeyChecking=yes" \
+    -N \
+    -L 0.0.0.0:__PUBLIC_PORT__:127.0.0.1:__PROXY_PORT__ \
+    -i /root/.ssh/tunnel_ed25519 \
+    sangha@__DUTCH_VM_IP__
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
