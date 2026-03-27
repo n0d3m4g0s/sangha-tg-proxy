@@ -1,8 +1,7 @@
-import json
 import os
 import re
 import secrets
-import subprocess
+import signal
 from pathlib import Path
 
 import docker
@@ -11,13 +10,11 @@ from fastapi import FastAPI, HTTPException, Header, Body
 app = FastAPI(title="Sangha TG Proxy API")
 
 API_KEY = os.environ["SANGHA_API_KEY"]
-USERS_PATH = Path(os.environ.get("USERS_PATH", "/data/users.json"))
+CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", "/data/config.py"))
 PROXY_CONTAINER = os.environ.get("PROXY_CONTAINER", "sangha-mtproto")
-PROXY_ENV_PATH = Path(os.environ.get("PROXY_ENV_PATH", "/opt/sangha-proxy/data/mtproxy.env"))
 TLS_DOMAIN = os.environ.get("TLS_DOMAIN", "ya.ru")
 PUBLIC_SERVER = os.environ.get("PUBLIC_SERVER", "tg.rigpa.space")
 PUBLIC_PORT = os.environ.get("PUBLIC_PORT", "443")
-CONNECTION_LIMIT = int(os.environ.get("CONNECTION_LIMIT", "16"))
 
 
 def verify_api_key(x_api_key: str = Header()):
@@ -25,74 +22,42 @@ def verify_api_key(x_api_key: str = Header()):
         raise HTTPException(status_code=403, detail="Invalid API key")
 
 
-def read_users() -> dict:
-    """Read users from JSON. Format: {username: secret_hex}"""
-    if not USERS_PATH.exists():
-        return {}
-    content = USERS_PATH.read_text().strip()
-    if not content:
-        return {}
-    return json.loads(content)
+def read_users() -> dict[str, str]:
+    """Parse USERS dict from config.py."""
+    content = CONFIG_PATH.read_text()
+    exec_globals: dict = {}
+    exec(content, exec_globals)
+    return dict(exec_globals.get("USERS", {}))
 
 
-def write_users(users: dict):
-    """Write users to JSON."""
-    USERS_PATH.write_text(json.dumps(users, indent=2, ensure_ascii=False))
+def write_users(users: dict[str, str]):
+    """Write USERS dict back to config.py, preserving other settings."""
+    content = CONFIG_PATH.read_text()
+    users_repr = "USERS = {\n"
+    for username, secret in sorted(users.items()):
+        users_repr += f'    "{username}": "{secret}",\n'
+    users_repr += "}"
+    new_content = re.sub(
+        r"USERS\s*=\s*\{[^}]*\}", users_repr, content, flags=re.DOTALL
+    )
+    CONFIG_PATH.write_text(new_content)
 
 
-def generate_env_file(users: dict):
-    """Generate mtproxy.env with SECRET_N, SECRET_LABEL_N, SECRET_LIMIT_N vars."""
-    lines = []
-    for i, (username, secret) in enumerate(sorted(users.items()), 1):
-        lines.append(f"SECRET_{i}={secret}")
-        lines.append(f"SECRET_LABEL_{i}={username}")
-        lines.append(f"SECRET_LIMIT_{i}={CONNECTION_LIMIT}")
-
-    env_content = "\n".join(lines) + "\n" if lines else "# no users\n"
-    PROXY_ENV_PATH.write_text(env_content)
-
-
-def restart_proxy():
-    """Remove and recreate proxy container with updated env vars."""
+def reload_proxy():
+    """Send SIGUSR2 to proxy container to reload config without downtime."""
     try:
         client = docker.from_env()
-
-        # Read current container config to preserve settings
-        try:
-            old = client.containers.get(PROXY_CONTAINER)
-            old.stop(timeout=5)
-            old.remove()
-        except docker.errors.NotFound:
-            pass
-
-        # Read env file
-        env_vars = {
-            "PORT": os.environ.get("PROXY_PORT", "3128"),
-            "EE_DOMAIN": TLS_DOMAIN,
-            "WORKERS": "1",
-            "STATS_PORT": "8888",
-        }
-        env_path = PROXY_ENV_PATH
-        if env_path.exists():
-            for line in env_path.read_text().strip().splitlines():
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    env_vars[k] = v
-
-        # Create new container
-        client.containers.run(
-            "ghcr.io/getpagespeed/mtproxy:latest",
-            name=PROXY_CONTAINER,
-            detach=True,
-            network_mode="host",
-            environment=env_vars,
-            restart_policy={"Name": "unless-stopped"},
-            mem_limit="256m",
-            log_config=docker.types.LogConfig(type="json-file", config={"max-file": "10", "max-size": "10m"}),
-        )
+        container = client.containers.get(PROXY_CONTAINER)
+        container.kill(signal=signal.SIGUSR2)
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=503, detail="Proxy container not found")
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failed to restart proxy: {e}")
+        raise HTTPException(status_code=503, detail=f"Failed to reload proxy: {e}")
+
+
+def generate_secret() -> str:
+    """Generate a random 32-hex-char secret."""
+    return secrets.token_hex(16)
 
 
 def build_proxy_link(secret: str) -> dict[str, str]:
@@ -116,19 +81,14 @@ def add_user(
         raise HTTPException(status_code=400, detail="Invalid username")
 
     users = read_users()
-
-    if len(users) >= 16:
-        raise HTTPException(status_code=400, detail="Maximum 16 users reached")
-
     if username in users:
         links = build_proxy_link(users[username])
         return {"username": username, "secret": users[username], "existed": True, **links}
 
-    secret = secrets.token_hex(16)
+    secret = generate_secret()
     users[username] = secret
     write_users(users)
-    generate_env_file(users)
-    restart_proxy()
+    reload_proxy()
 
     links = build_proxy_link(secret)
     return {"username": username, "secret": secret, "existed": False, **links}
@@ -147,8 +107,7 @@ def remove_user(
 
     del users[username]
     write_users(users)
-    generate_env_file(users)
-    restart_proxy()
+    reload_proxy()
 
     return {"username": username, "removed": True}
 
@@ -174,12 +133,12 @@ def health():
     except Exception:
         running = False
 
-    users = read_users()
+    config_ok = CONFIG_PATH.exists()
+    users = read_users() if config_ok else {}
 
     return {
         "proxy_running": running,
+        "config_exists": config_ok,
         "user_count": len(users),
-        "max_users": 16,
-        "connection_limit_per_user": CONNECTION_LIMIT,
-        "status": "ok" if running else "degraded",
+        "status": "ok" if running and config_ok else "degraded",
     }
