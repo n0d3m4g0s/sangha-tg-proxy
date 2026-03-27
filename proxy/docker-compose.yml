@@ -38,6 +38,7 @@ services:
       - PUBLIC_SERVER=${RUSSIAN_VM_HOST:-tg.rigpa.space}
       - PUBLIC_PORT=${PUBLIC_PORT:-443}
       - CONNECTION_LIMIT=${CONNECTION_LIMIT:-16}
+      - PROXY_PORT=${PROXY_PORT:-3128}
     logging:
       driver: json-file
       options:

@@ -53,13 +53,44 @@ def generate_env_file(users: dict):
 
 
 def restart_proxy():
-    """Restart proxy container to pick up new secrets."""
+    """Remove and recreate proxy container with updated env vars."""
     try:
         client = docker.from_env()
-        container = client.containers.get(PROXY_CONTAINER)
-        container.restart(timeout=5)
-    except docker.errors.NotFound:
-        raise HTTPException(status_code=503, detail="Proxy container not found")
+
+        # Read current container config to preserve settings
+        try:
+            old = client.containers.get(PROXY_CONTAINER)
+            old.stop(timeout=5)
+            old.remove()
+        except docker.errors.NotFound:
+            pass
+
+        # Read env file
+        env_vars = {
+            "PORT": os.environ.get("PROXY_PORT", "3128"),
+            "EE_DOMAIN": TLS_DOMAIN,
+            "WORKERS": "1",
+            "STATS_PORT": "8888",
+        }
+        env_path = PROXY_ENV_PATH
+        if env_path.exists():
+            for line in env_path.read_text().strip().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env_vars[k] = v
+
+        # Create new container
+        client.containers.run(
+            "ghcr.io/getpagespeed/mtproxy:latest",
+            name=PROXY_CONTAINER,
+            detach=True,
+            network_mode="host",
+            environment=env_vars,
+            restart_policy={"Name": "unless-stopped"},
+            mem_limit="256m",
+            log_config=docker.types.LogConfig(type="json-file", config={"max-file": "10", "max-size": "10m"}),
+        )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Failed to restart proxy: {e}")
 
