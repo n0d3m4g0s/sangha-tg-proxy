@@ -177,7 +177,7 @@ function parseProxyUrl(tmeLink) {
 /**
  * Build HTML email body.
  */
-function buildProxyEmailHtml(tmeLink, credentials, screenshotKeys) {
+function buildProxyEmailHtml(tmeLink, tgLink, credentials, screenshotKeys) {
   var hasScreenshots = screenshotKeys.length > 0;
 
   var html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background-color:#f5f5f5;">' +
@@ -196,6 +196,20 @@ function buildProxyEmailHtml(tmeLink, credentials, screenshotKeys) {
   html += '<p style="margin:0 0 24px 0;text-align:center;">' +
     '<a href="' + tmeLink + '" style="display:inline-block;padding:14px 32px;background-color:#4A90D9;color:#ffffff;text-decoration:none;border-radius:6px;font-size:16px;font-weight:600;">Подключиться</a>' +
     '</p>';
+
+  // Copy-paste links
+  html += '<p style="margin:0 0 6px 0;font-size:14px;color:#555555;">Если кнопка не сработала, скопируйте одну из ссылок и откройте в браузере на телефоне:</p>';
+
+  html += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;">' +
+    '<tr style="background-color:#f7f7f7;">' +
+    '<td style="padding:10px 14px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;font-size:13px;font-weight:600;color:#555;border-bottom:1px solid #e0e0e0;width:80px;">Ссылка</td>' +
+    '<td style="padding:10px 14px;font-family:\'Courier New\',Courier,monospace;font-size:12px;color:#333;border-bottom:1px solid #e0e0e0;word-break:break-all;"><a href="' + tmeLink + '" style="color:#4A90D9;text-decoration:none;">' + tmeLink + '</a></td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td style="padding:10px 14px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;font-size:13px;font-weight:600;color:#555;width:80px;">Диплинк</td>' +
+    '<td style="padding:10px 14px;font-family:\'Courier New\',Courier,monospace;font-size:12px;color:#333;word-break:break-all;"><a href="' + tgLink + '" style="color:#4A90D9;text-decoration:none;">' + tgLink + '</a></td>' +
+    '</tr>' +
+    '</table>';
 
   // Warning
   html += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">' +
@@ -319,11 +333,12 @@ function sendProxyEmail(email, username, tmeLink, tgLink) {
     Logger.log("Screenshots not loaded: " + e.message);
   }
 
-  var htmlBody = buildProxyEmailHtml(tmeLink, credentials, screenshotKeys);
+  var htmlBody = buildProxyEmailHtml(tmeLink, tgLink, credentials, screenshotKeys);
 
   // Plain text fallback
   var plainBody = "Здравствуйте!\n\n" +
     "Ваша персональная ссылка готова:\n" + tmeLink + "\n\n" +
+    "Диплинк для Telegram:\n" + tgLink + "\n\n" +
     "Данные для ручной настройки:\n" +
     "Сервер: " + credentials.server + "\n" +
     "Порт: " + credentials.port + "\n" +
@@ -363,6 +378,7 @@ function testAddUser() {
  */
 function testSendEmail() {
   var testTmeLink = "https://t.me/proxy?server=tg.rigpa.space&port=443&secret=eea1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d479612e7275";
-  sendProxyEmail(CONFIG.ADMIN_EMAIL, "test_user", testTmeLink, "");
+  var testTgLink = "tg://proxy?server=tg.rigpa.space&port=443&secret=eea1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d479612e7275";
+  sendProxyEmail(CONFIG.ADMIN_EMAIL, "test_user", testTmeLink, testTgLink);
   Logger.log("Test email sent to " + CONFIG.ADMIN_EMAIL);
 }
