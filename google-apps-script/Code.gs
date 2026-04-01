@@ -167,8 +167,9 @@ function parseProxyUrl(tmeLink) {
     var kv = pair.split("=");
     params[kv[0]] = decodeURIComponent(kv[1] || "");
   });
+  var server = (params.server || "").replace(/^https?:\/\//, "");
   return {
-    server: params.server || "",
+    server: server,
     port: params.port || "",
     secret: params.secret || ""
   };

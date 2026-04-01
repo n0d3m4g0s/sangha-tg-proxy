@@ -13,7 +13,7 @@ API_KEY = os.environ["SANGHA_API_KEY"]
 CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", "/data/config.py"))
 PROXY_CONTAINER = os.environ.get("PROXY_CONTAINER", "sangha-mtproto")
 TLS_DOMAIN = os.environ.get("TLS_DOMAIN", "ya.ru")
-PUBLIC_SERVER = os.environ.get("PUBLIC_SERVER", "tg.rigpa.space")
+PUBLIC_SERVER = os.environ.get("PUBLIC_SERVER", "tg.rigpa.space").removeprefix("https://").removeprefix("http://").rstrip("/")
 PUBLIC_PORT = os.environ.get("PUBLIC_PORT", "443")
 
 
