@@ -7,7 +7,6 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 source "$PROJECT_DIR/.env"
 
 DUTCH_VM="${DUTCH_VM_IP}"
-TUNNEL_PUB_KEY=$(cat "$PROJECT_DIR/keys/tunnel_ed25519.pub")
 
 echo "=== Provisioning Dutch VM ($DUTCH_VM) ==="
 
@@ -37,19 +36,6 @@ ufw allow 443/tcp
 ufw allow from ${RUSSIAN_VM_IP} to any port ${PROXY_PORT:-3128}
 ufw allow 8443/tcp
 ufw --force enable
-
-echo "--- Create sangha user ---"
-if ! id sangha &>/dev/null; then
-    useradd -m -s /bin/bash sangha
-    usermod -aG docker sangha
-fi
-
-echo "--- SSH keys for sangha (tunnel) ---"
-mkdir -p /home/sangha/.ssh
-chmod 700 /home/sangha/.ssh
-echo 'no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:${PROXY_PORT:-3128}",permitopen="127.0.0.1:${PROXY_PORT:-3128}",permitopen="[::1]:${PROXY_PORT:-3128}" ${TUNNEL_PUB_KEY}' > /home/sangha/.ssh/authorized_keys
-chmod 600 /home/sangha/.ssh/authorized_keys
-chown -R sangha:sangha /home/sangha/.ssh
 
 echo "--- SSH keys for root (owner) ---"
 mkdir -p /root/.ssh

@@ -7,15 +7,6 @@ KEYS_DIR="$PROJECT_DIR/keys"
 
 mkdir -p "$KEYS_DIR"
 
-# Tunnel key (RU VM → NL VM)
-if [ ! -f "$KEYS_DIR/tunnel_ed25519" ]; then
-    echo "Generating tunnel SSH key..."
-    ssh-keygen -t ed25519 -f "$KEYS_DIR/tunnel_ed25519" -N "" -C "sangha-tunnel"
-    echo "Tunnel key generated: $KEYS_DIR/tunnel_ed25519"
-else
-    echo "Tunnel key already exists, skipping."
-fi
-
 # Deploy key (local → VMs)
 if [ ! -f "$KEYS_DIR/deploy_ed25519" ]; then
     echo "Generating deploy SSH key..."
@@ -27,8 +18,5 @@ fi
 
 echo ""
 echo "Keys are in: $KEYS_DIR"
-echo "Tunnel public key:"
-cat "$KEYS_DIR/tunnel_ed25519.pub"
-echo ""
 echo "Deploy public key:"
 cat "$KEYS_DIR/deploy_ed25519.pub"

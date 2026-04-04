@@ -6,7 +6,6 @@ keys/
 
 # Runtime config & data (generated)
 data/
-tunnel/autossh-tunnel.service
 
 # Python
 __pycache__/

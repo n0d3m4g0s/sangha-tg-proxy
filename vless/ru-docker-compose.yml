@@ -1,0 +1,15 @@
+services:
+  xray:
+    build:
+      context: .
+    container_name: sangha-xray-ru
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./config.json:/etc/xray/config.json:ro
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: "10m"
+    mem_limit: 256m

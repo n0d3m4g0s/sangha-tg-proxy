@@ -6,9 +6,9 @@ DUTCH_VM := root@$(DUTCH_VM_IP)
 RUSSIAN_VM := root@$(RUSSIAN_VM_IP)
 
 .PHONY: setup-keys setup-dutch setup-russian setup-all \
-        deploy-proxy deploy-tunnel deploy-monitoring deploy-all \
+        deploy-proxy deploy-monitoring deploy-all \
         add-user remove-user list-users health \
-        logs-proxy logs-api logs-tunnel
+        logs-proxy logs-api
 
 # ── Quick Start (full deploy from scratch) ────────────────
 
@@ -33,16 +33,6 @@ setup-russian:
 
 setup-all: setup-keys setup-dutch setup-russian
 
-# ── Generate configs from templates ───────────────────────
-
-tunnel/autossh-tunnel.service: tunnel/autossh-tunnel.service.template .env
-	@sed \
-		-e 's|__DUTCH_VM_IP__|$(DUTCH_VM_IP)|g' \
-		-e 's|__PROXY_PORT__|$(PROXY_PORT)|g' \
-		-e 's|__PUBLIC_PORT__|$(PUBLIC_PORT)|g' \
-		$< > $@
-	@echo "Generated tunnel/autossh-tunnel.service"
-
 # ── Deploy ────────────────────────────────────────────────
 
 deploy-proxy:
@@ -50,17 +40,10 @@ deploy-proxy:
 	ssh $(DUTCH_VM) "mkdir -p /opt/sangha-proxy/{proxy,api,data}"
 	scp proxy/Dockerfile proxy/docker-compose.yml $(DUTCH_VM):/opt/sangha-proxy/proxy/
 	scp api/Dockerfile api/requirements.txt api/server.py $(DUTCH_VM):/opt/sangha-proxy/api/
-	ssh $(DUTCH_VM) "test -f /opt/sangha-proxy/data/users.json || echo '{}' > /opt/sangha-proxy/data/users.json"
-	ssh $(DUTCH_VM) "test -f /opt/sangha-proxy/data/mtproxy.env || echo '# no users' > /opt/sangha-proxy/data/mtproxy.env"
+	ssh $(DUTCH_VM) "test -f /opt/sangha-proxy/data/config.py || printf 'USERS = {}\n' > /opt/sangha-proxy/data/config.py"
 	scp .env $(DUTCH_VM):/opt/sangha-proxy/proxy/.env
 	ssh $(DUTCH_VM) "cd /opt/sangha-proxy/proxy && docker compose --env-file .env up -d --build"
 	@echo "=== Proxy deployed ==="
-
-deploy-tunnel: tunnel/autossh-tunnel.service
-	@echo "=== Deploying tunnel to Russian VM ==="
-	scp tunnel/autossh-tunnel.service $(RUSSIAN_VM):/etc/systemd/system/
-	ssh $(RUSSIAN_VM) "systemctl daemon-reload && systemctl enable --now autossh-tunnel.service"
-	@echo "=== Tunnel deployed ==="
 
 deploy-monitoring:
 	@echo "=== Deploying monitoring ==="
@@ -72,7 +55,7 @@ deploy-monitoring:
 	ssh $(RUSSIAN_VM) "chmod +x /opt/sangha-proxy/monitoring/*.sh"
 	@echo "=== Monitoring deployed ==="
 
-deploy-all: deploy-proxy deploy-tunnel deploy-monitoring
+deploy-all: deploy-proxy deploy-monitoring
 
 # ── User Management ───────────────────────────────────────
 
@@ -99,6 +82,3 @@ logs-proxy:
 
 logs-api:
 	ssh $(DUTCH_VM) "docker logs --tail 50 -f sangha-api"
-
-logs-tunnel:
-	ssh $(RUSSIAN_VM) "journalctl -u autossh-tunnel.service -f --no-pager -n 50"

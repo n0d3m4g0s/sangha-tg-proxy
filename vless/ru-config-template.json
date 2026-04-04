@@ -1,0 +1,73 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "tag": "vless-reality-in",
+      "listen": "0.0.0.0",
+      "port": __VLESS_PORT__,
+      "protocol": "vless",
+      "settings": {
+        "clients": __CLIENTS__,
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "__VLESS_SNI__:443",
+          "xver": 0,
+          "serverNames": ["__VLESS_SNI__"],
+          "privateKey": "__RU_REALITY_PRIVATE_KEY__",
+          "shortIds": ["__RU_REALITY_SHORT_ID__"]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "cascade-to-nl",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "__DUTCH_VM_IP__",
+            "port": __NL_XRAY_PORT__,
+            "users": [
+              {
+                "id": "__CASCADE_UUID__",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "fingerprint": "chrome",
+          "serverName": "__NL_REALITY_SNI__",
+          "publicKey": "__NL_REALITY_PUBLIC_KEY__",
+          "shortId": "__NL_REALITY_SHORT_ID__"
+        }
+      }
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["vless-reality-in"],
+        "outboundTag": "cascade-to-nl"
+      }
+    ]
+  }
+}

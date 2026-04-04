@@ -5,21 +5,17 @@ MTProto proxy for Telegram with Fake-TLS obfuscation and per-user connection lim
 ## Architecture
 
 ```
-Users in Russia
-    |
-    v
-RU VM (proxy-ru:443)  --- SSH tunnel ---  NL VM (proxy-nl:3128)
-    autossh                                 GetPageSpeed/MTProxy + API
-                                                    |
-                                                    v
-                                              Telegram servers
+Chain 1 — MTProto (primary, Telegram app):
+  User → RU VM nginx:443 (stream) → NL VM:3128 (mtprotoproxy) → Telegram
+
+Chain 2 — VLESS Reality (parallel, general-purpose):
+  User → RU VM xray:8443 (Reality/vk.com) → NL VM xray:8444 (Reality/google.com) → internet
 ```
 
-- **Russian VM** — entry point, listens on port 443, forwards via SSH tunnel
-- **Dutch VM** — runs GetPageSpeed/MTProxy (C) with Fake-TLS + webhook API + nginx (SSL)
+- **Russian VM** — entry point, nginx stream forwards port 443, Xray on port 8443
+- **Dutch/Vultr VM** — runs mtprotoproxy (C) with Fake-TLS + webhook API + nginx (SSL) + Xray
 - Traffic looks like regular HTTPS to DPI systems
-- Per-user secrets with connection limit (2 devices / 16 connections per secret)
-- Up to 16 users
+- Per-user secrets with connection limit (16 connections per secret)
 
 ## Quick Start
 
@@ -43,8 +39,8 @@ Or step by step:
 ```bash
 make setup-keys       # Generate SSH keys
 make setup-dutch      # Provision NL VM (Docker, nginx, SSL, firewall)
-make setup-russian    # Provision RU VM (autossh, firewall)
-make deploy-all       # Deploy proxy + tunnel + monitoring
+make setup-russian    # Provision RU VM (nginx, firewall)
+make deploy-all       # Deploy proxy + monitoring
 ```
 
 ## User Management
@@ -69,18 +65,17 @@ See `google-apps-script/README.md` for step-by-step setup:
 make health          # Full health check
 make logs-proxy      # Proxy container logs
 make logs-api        # API container logs
-make logs-tunnel     # SSH tunnel logs
 ```
 
-Automatic alerts via Telegram bot every 5 minutes if proxy/tunnel is down.
+Automatic alerts via Telegram bot every 5 minutes if proxy is down.
 
 ## Files
 
 | Path | Description |
 |---|---|
-| `proxy/` | MTProxy Docker config (GetPageSpeed/MTProxy) |
+| `proxy/` | MTProxy Docker config |
 | `api/` | FastAPI webhook for user management |
-| `tunnel/` | autossh systemd service template |
+| `vless/` | Xray/VLESS Reality configs and Docker setup |
 | `scripts/` | Provisioning and management scripts |
 | `monitoring/` | Health checks and Telegram alerting |
 | `google-apps-script/` | Google Form automation |

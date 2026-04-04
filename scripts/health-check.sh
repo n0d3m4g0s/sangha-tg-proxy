@@ -11,11 +11,16 @@ echo "=== Health Check ==="
 echo ""
 echo "--- Russian VM (${RUSSIAN_VM_HOST:-$RUSSIAN_VM_IP}) ---"
 ssh root@"${RUSSIAN_VM_IP}" bash -s <<'REMOTE'
-echo "autossh-tunnel: $(systemctl is-active autossh-tunnel.service 2>/dev/null || echo 'not installed')"
+echo "nginx: $(systemctl is-active nginx 2>/dev/null || echo 'not running')"
 if ss -tlnp | grep -q ':443'; then
     echo "port 443: LISTENING"
 else
     echo "port 443: NOT LISTENING"
+fi
+if ss -tlnp | grep -q ':8443'; then
+    echo "port 8443 (xray): LISTENING"
+else
+    echo "port 8443 (xray): NOT LISTENING"
 fi
 REMOTE
 

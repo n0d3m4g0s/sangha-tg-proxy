@@ -43,8 +43,8 @@ ERRORS=0
 
 # ── Russian VM checks ────────────────────────────────────
 if [ -n "$RUSSIAN_VM_IP" ] && ip addr show 2>/dev/null | grep -q "$RUSSIAN_VM_IP"; then
-    if ! systemctl is-active --quiet autossh-tunnel.service 2>/dev/null; then
-        alert "🔴 <b>[RU VM]</b> autossh-tunnel DOWN — tunnel not running"
+    if ! systemctl is-active --quiet nginx 2>/dev/null; then
+        alert "🔴 <b>[RU VM]</b> nginx DOWN — port forwarding not running"
         ERRORS=$((ERRORS + 1))
     fi
     if ! ss -tlnp 2>/dev/null | grep -q ":${PUBLIC_PORT}"; then
