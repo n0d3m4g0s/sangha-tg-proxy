@@ -3,6 +3,7 @@
 keys/
 *.pem
 *.key
+stuff.md
 
 # Runtime config & data (generated)
 data/
