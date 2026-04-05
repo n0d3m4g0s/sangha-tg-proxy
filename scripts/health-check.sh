@@ -17,11 +17,6 @@ if ss -tlnp | grep -q ':443'; then
 else
     echo "port 443: NOT LISTENING"
 fi
-if ss -tlnp | grep -q ':8443'; then
-    echo "port 8443 (xray): LISTENING"
-else
-    echo "port 8443 (xray): NOT LISTENING"
-fi
 REMOTE
 
 echo ""
@@ -47,4 +42,4 @@ REMOTE
 
 echo ""
 echo "--- API Health ---"
-curl -sk "https://${DUTCH_VM_HOST:-$DUTCH_VM_IP}:8443/api/health" 2>/dev/null | python3 -m json.tool || echo "API unreachable"
+ssh root@"${DUTCH_VM_IP}" "curl -s http://127.0.0.1:8443/api/health -H 'X-API-Key: ${SANGHA_API_KEY}'" 2>/dev/null | python3 -m json.tool || echo "API unreachable"

@@ -7,6 +7,7 @@ RUSSIAN_VM := root@$(RUSSIAN_VM_IP)
 
 .PHONY: setup-keys setup-dutch setup-russian setup-all \
         deploy-proxy deploy-monitoring deploy-all \
+        tune-russian \
         add-user remove-user list-users health \
         logs-proxy logs-api
 
@@ -32,6 +33,11 @@ setup-russian:
 	./scripts/setup-russian-vm.sh
 
 setup-all: setup-keys setup-dutch setup-russian
+
+# ── Tuning ────────────────────────────────────────────────
+
+tune-russian:
+	./scripts/tune-russian-vm.sh
 
 # ── Deploy ────────────────────────────────────────────────
 
